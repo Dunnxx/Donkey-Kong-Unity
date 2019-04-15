@@ -1,0 +1,39 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Collectible : MonoBehaviour
+{
+
+    int _points;
+    public AudioClip clip;
+    // Use this for initialization
+    void Start()
+    {
+        points = 10;
+    }
+
+    // Update is called once per frame
+    void Update()   
+    {
+
+    }
+
+    private void OnDestroy()
+    {
+        if (clip && SoundManager.instance)
+            SoundManager.instance.playSingleSound(clip);
+        //for 3d sfx play on the camera 
+       // AudioSource.PlayClipAtPoint(clip, Camera.main.transform.position);
+    }
+
+    public int points
+    {
+        get
+        {
+            Debug.Log("Points returned " + _points);
+            return _points;
+        }
+        set { _points = value; }
+    }
+}
