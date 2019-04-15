@@ -1,0 +1,247 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(CapsuleCollider2D))]
+public class DonkeyKong : MonoBehaviour
+{
+
+    // Makes a private reference to Rigidbody2D Component
+    Rigidbody2D rb;
+
+    // Makes a public reference to Rigidbody2D Component
+    // - Shown in Inspector
+    public Rigidbody2D rb2;
+
+    // Variable to control speed of GameObject
+    public float speed;
+
+    // Variable to control jumpForce of GameObject
+    public float jumpForce;
+
+    // Variables to tell if Character should jump or not
+    public bool isGrounded;
+    public LayerMask isGroundLayer;
+    public Transform groundCheck;
+    public float groundCheckRadius;
+
+    // Makes a private reference to Animator Component
+    Animator anim;
+
+    // Used when flipping character
+    public bool isFacingRight;
+
+    // Handles projectile spawning
+    public Rigidbody2D projectile;          // What to spawn
+    public Transform projectileSpawnPoint;  // Where to spawn 
+    public float projectileForce;           // How fast to fire it
+
+    // Might be used later on as an add on
+    SuperPower sp;
+
+    AudioSource sfxSource;
+    public AudioClip jumpSFX;
+    public AudioClip fireSFX;
+
+
+
+    // Use this for initialization
+    void Start()
+    {
+
+        // Assigning 'tags' and 'name' through script
+        tag = "Player";
+        name = "Player";
+
+        points = 0;
+
+        // Used to get and save a reference to the Rigidbody2D Component
+        rb = GetComponent<Rigidbody2D>();
+
+        // Change variables of Rigidbody2D after saving a reference
+        rb.mass = 1.0f;
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.sleepMode = RigidbodySleepMode2D.NeverSleep;
+
+        // Check if speed variable was set in the inspector
+        if (speed <= 0 || speed > 5.0f)
+        {
+            // Assign a default value if one was not set
+            speed = 5.0f;
+
+            // Prints a warning message to the Console
+            // - Open Console by going to Window-->Console (or Ctrl+Shift+C)
+            Debug.LogWarning("Speed not set on " + name + ". Defaulting to " + speed);
+        }
+
+        // Check if jumpForce variable was set in the inspector
+        if (jumpForce <= 0 || jumpForce > 10.0f)
+        {
+            jumpForce = 10.0f;
+            Debug.LogWarning("JumpForce not set on " + name + ". Defaulting to " + jumpForce);
+        }
+
+        // Check if groundCheckRadius variable was set in the inspector
+        if (groundCheckRadius <= 0)
+        {
+            // Assign a default value if one was not set
+            groundCheckRadius = 0.1f;
+
+            // Prints a warning message to the Console
+            // - Open Console by going to Window-->Console (or Ctrl+Shift+C)
+            Debug.LogWarning("Ground Check Radius not set. Defaulting to " + groundCheckRadius);
+        }
+
+        // Check if groundCheck variable was set in the inspector
+        if (!groundCheck)
+        {
+            // Prints a warning message to the Console
+            // - Open Console by going to Window-->Console (or Ctrl+Shift+C)
+            Debug.LogError("Ground Check not set in Inspector.");
+
+            // Find gameObject to attach
+            groundCheck = GameObject.Find("GroundCheck").GetComponent<Transform>();
+        }
+
+        // Used to get and save a reference to the Animator Component
+        anim = GetComponent<Animator>();
+
+        // Check if 'anim' variable was set in the inspector
+        if (!anim)
+        {
+            // Prints a warning message to the Console
+            // - Open Console by going to Window-->Console (or Ctrl+Shift+C)
+            Debug.LogError("Animator not found on " + name);
+        }
+
+       
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+
+        float moveValue = Input.GetAxisRaw("Horizontal");
+
+
+        isGrounded = Physics2D.OverlapCircle(groundCheck.position,
+            groundCheckRadius, isGroundLayer);
+
+        if (isGrounded)
+        {
+            GameManager.instance.Jumper = false;
+            GameManager.instance.Roll = false;
+
+
+
+            if (Input.GetButtonDown("Jump"))
+            {
+                Debug.Log("Jump");
+
+                GameManager.instance.Jumper = true;
+
+                rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            }
+        }
+        
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+
+        }
+
+
+        if (Input.GetButtonDown("Fire1"))
+        {
+            GameManager.instance.Roll = true;
+            anim.SetTrigger("Attack");
+
+        }
+
+        if (rb)
+
+            rb.velocity = new Vector2(moveValue * speed, rb.velocity.y);
+
+
+        if (anim)
+        {
+     
+            anim.SetBool("Grounded", isGrounded);
+            anim.SetFloat("Movement", Mathf.Abs(moveValue));
+        }
+
+
+        if ((moveValue > 0 && isFacingRight) ||
+            (moveValue < 0 && !isFacingRight))
+            flip();
+    }
+
+
+    // Check if Two GameObjects collide
+    // - Both GameObjects need Colliders
+    // - Minimum one needs a Rigidbody2D
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Check if 'Character' collides with something tagged as 'Collectible'
+        if (collision.gameObject.tag == "Collectible")
+        {
+            // Destroy GameObject 'Character' collides with
+            Destroy(collision.gameObject);
+        }
+
+    }
+
+    // Check if Two GameObjects overlap
+    // - Both GameObjects need Colliders
+    // - One Collider should be set to 'Is Trigger'
+    // - Minimum one needs a Rigidbody2D
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        // Check if 'Character' collides with something tagged as 'Collectible'
+        if (collision.gameObject.tag == "Collectible")
+        {
+            // Create a reference to the Script on 'Collectible'
+            Collectible c = collision.GetComponent<Collectible>();
+
+            // Check if 'Collectible' Script exists on GameObject being collided with
+            if (c)
+            {
+                // Increase points using Scripts variable
+                points += c.points;
+            }
+
+            // Delete gameObject that collided with 'Character'
+            Destroy(collision.gameObject);
+        }
+    }
+
+
+    void flip()
+    {
+        // Toggle variable
+        isFacingRight = !isFacingRight;
+
+        // Keep a copy of 'localScale' because scale cannot be changed directly
+        Vector3 scaleFactor = transform.localScale;
+
+        // Change sign of scale in 'x'
+        scaleFactor.x *= -1; // or - -scaleFactor.x
+
+        // Assign updated value back to 'localScale'
+        transform.localScale = scaleFactor;
+    }
+
+    void fire()
+    {
+        Debug.Log("rolling");
+        Debug.Log("set kill for interact");
+
+
+
+    }
+
+    // Create variable and make getter and setter
+    public int points { get; set; }
+}
